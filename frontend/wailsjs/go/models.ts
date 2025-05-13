@@ -14,39 +14,36 @@ export namespace main {
 	        this.value = source["value"];
 	    }
 	}
-
-}
-
-export namespace models {
-	
-	export class PreParams {
-	    JavaHome: string;
-	    AndroidHome: string;
-	    BuildPath: string;
-	    Channel: string;
+	export class packParams {
+	    JavaPath: string;
+	    AndroidPath: string;
+	    RootPath: string;
+	    OutputPath: string;
+	    ApkPath: string;
+	    ProductId: string;
+	    ProductName: string;
+	    ApkName: string;
+	    PackageName: string;
 	    ChannelId: string;
-	    HomePath: string;
-	    ExpandPath: string;
-	    GamePath: string;
-	    KeystoreName: string;
-	    Plugins: string[];
+	    ChannelName: string;
 	
 	    static createFrom(source: any = {}) {
-	        return new PreParams(source);
+	        return new packParams(source);
 	    }
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.JavaHome = source["JavaHome"];
-	        this.AndroidHome = source["AndroidHome"];
-	        this.BuildPath = source["BuildPath"];
-	        this.Channel = source["Channel"];
+	        this.JavaPath = source["JavaPath"];
+	        this.AndroidPath = source["AndroidPath"];
+	        this.RootPath = source["RootPath"];
+	        this.OutputPath = source["OutputPath"];
+	        this.ApkPath = source["ApkPath"];
+	        this.ProductId = source["ProductId"];
+	        this.ProductName = source["ProductName"];
+	        this.ApkName = source["ApkName"];
+	        this.PackageName = source["PackageName"];
 	        this.ChannelId = source["ChannelId"];
-	        this.HomePath = source["HomePath"];
-	        this.ExpandPath = source["ExpandPath"];
-	        this.GamePath = source["GamePath"];
-	        this.KeystoreName = source["KeystoreName"];
-	        this.Plugins = source["Plugins"];
+	        this.ChannelName = source["ChannelName"];
 	    }
 	}
 

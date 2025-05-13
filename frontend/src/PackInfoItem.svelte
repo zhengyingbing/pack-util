@@ -1,69 +1,48 @@
 <script>
     import {onMount} from "svelte";
-    import CommonButton from "./CommonButton.svelte";
     import icon_file from './assets/images/icon_file.png'
     import {OpenFolder, Print} from "../wailsjs/go/main/App.js";
-    export let isChecked = false
-    export let outPath
-    export let channelName, channelId, version, totalTime
 
-    let status = 1;
-    export let progress
-    // export let handleItemClick = (id) => {}
-    // export let handleFileClick = (id) => {}
-    function handleItemClick(id) {
-        isChecked = !isChecked
-    }
+    export let outPath
+    export let channelParam
+
+    export let handleItemClick = () => {}
+
+
     function handleFileClick(id) {
         OpenFolder(outPath)
     }
-    export let showProgress = false
-    export let statusContent = ""
 
     //打包状态：未开始1，打包中2，打包成功0，打包失败-1
-    export function updateStatus(packStatus) {
-        Print("更新打包状态" + packStatus)
-        status = packStatus
-        if(status === 1){
-            status = ""
-        } else if(status === 2){
-            showProgress = true
-            statusContent = "打包中"
-        } else if(status === 0){
-            statusContent = "打包成功"
-        } else if(status === -1){
-            statusContent = "打包失败"
-        }
-    }
     onMount(async () => {
 
     })
 </script>
-<div class="info-layout" on:click={handleItemClick(channelId)}>
-    <input class="info-checkbox" type="checkbox" checked={isChecked}/>
-    <span class="span">{channelName}</span>
-    <span class="span">{channelId}</span>
-    <span class="span">{version}</span>
+<div class="info-layout" on:click={handleItemClick}>
+    <input class="info-checkbox" type="checkbox" checked={channelParam.isChecked ? "checked" : ""} on:change={handleItemClick}/>
+    <span class="span">{channelParam.channelDesc}</span>
+    <span class="span">{channelParam.channelId}</span>
+    <span class="span">{channelParam.packageName}</span>
+    <span class="span">{channelParam.version}</span>
     <div class="progress-container">
-        {#if showProgress}
-            <progress value={progress} max="100">{progress}%</progress>
-            <span class="progress-text">{progress}%</span>
-            {/if}
+        {#if channelParam.progress > 0}
+            <progress value={channelParam.progress} max="100">{channelParam.progress}%</progress>
+            <span class="progress-text">{channelParam.progress}%</span>
+        {/if}
 
     </div>
 
-    <span class="status-content">{statusContent}</span>
+    <span class="status-content">{channelParam.statusContent}</span>
 
-    <span class="span">{totalTime}</span>
     <div>
-        <img class="img-file" src={icon_file} on:click={handleFileClick(channelId)} alt="打开文件"/>
+        <img class="img-file" src={icon_file} on:click={handleFileClick(channelParam.channelId)} alt="打开文件"/>
     </div>
 </div>
 <style>
     .info-layout {
         display: inline-grid;
         grid-auto-flow: column;
-        grid-template-columns: 1fr 1fr 1fr 1fr 2fr 1fr 1fr 1fr;
+        grid-template-columns: 0.8fr 1fr 1fr 2.4fr 1fr 1.8fr 1.2fr 0.8fr;
         align-items: center;
         background: #ffffff;
         width: 100%;

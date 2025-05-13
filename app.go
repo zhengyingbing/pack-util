@@ -4,26 +4,25 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/gorilla/websocket"
 	"github.com/sqweek/dialog"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"github.com/zhengyingbing/common-utils/common/utils"
 	"github.com/zhengyingbing/common-utils/packaging"
 	"github.com/zhengyingbing/common-utils/packaging/models"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 )
 
-const (
-	product      = "1"
-	channelId    = "1"
-	channel      = "hoolai"
-	game         = "aygd"
-	keystoreName = "aygd.keystore"
-	packageName  = "com.hoolai.sdsxszycsds"
-)
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
+}
 
 // App struct
 type App struct {
@@ -135,69 +134,48 @@ func (a *App) OpenFolder(path string) {
 	}
 }
 
-func (a *App) StartPack(params *models.PreParams) error {
-	println("开始打包.......~", params.HomePath)
+func (a *App) StartPack(params *packParams) error {
+	fmt.Printf("%+v\n", params)
+	buildRootPath := filepath.Join(params.RootPath, "build")
+	buildPath := filepath.Join(buildRootPath, params.ProductId+"_"+params.ChannelId)
+	if !utils.Exist(buildPath) {
+		utils.CreateDir(buildPath)
+	}
 	cfg := make(map[string]string)
-	cfg[models.AppName] = channel + "Demo"
+	cfg[models.AppName] = params.ProductName
 	cfg[models.IconName] = "ic_launcher.png"
 	cfg[models.TargetSdkVersion] = "30"
 	cfg[models.DexMethodCounters] = "60000"
-	cfg[models.BundleId] = packageName
+	cfg[models.BundleId] = params.PackageName
 	cfg[models.Orientation] = "sensorPortrait"
 	cfg[models.SignVersion] = "2"
 	cfg[models.KeystoreAlias] = "aygd3"
 	cfg[models.KeystorePass] = "aygd3123"
 	cfg[models.KeyPass] = "aygd3123"
 	cfg["appId"] = "614371"
-	models.SetServerDynamic(channelId, cfg)
+	models.SetServerDynamic(params.ChannelId, cfg)
 
-	utils.Remove(params.BuildPath)
-	utils.Copy(filepath.Join(params.HomePath, channel, "access.config"), filepath.Join(params.BuildPath, "access.config"), true)
-	utils.Copy(filepath.Join(params.HomePath, "ic_launcher.png"), filepath.Join(params.BuildPath, "ic_launcher.png"), true)
-	utils.Copy(filepath.Join(params.HomePath, keystoreName), filepath.Join(params.BuildPath, keystoreName), true)
-	println("路径=============：", params.HomePath)
-	packaging.Execute(params, &ProgressImpl{}, &models.LogImpl{})
-	return nil
-}
+	utils.Remove(buildRootPath)
+	utils.Copy(filepath.Join(params.RootPath, "config", params.ChannelId, "access.config"), filepath.Join(buildPath, "access.config"), true)
+	utils.Copy(filepath.Join(params.RootPath, "config", params.ChannelId, "ic_launcher.png"), filepath.Join(buildPath, "ic_launcher.png"), true)
+	utils.Copy(filepath.Join(params.RootPath, "config", params.ChannelId, "game.keystore"), filepath.Join(buildPath, "game.keystore"), true)
+	println("路径=============：", buildRootPath)
 
-func startPackaging() {
-	path := "C:\\apktool"
-	homePath := filepath.Join(path, "home")
-	cfg := make(map[string]string)
-	cfg[models.AppName] = channel + "Demo"
-	cfg[models.IconName] = "ic_launcher.png"
-	cfg[models.TargetSdkVersion] = "30"
-	cfg[models.DexMethodCounters] = "60000"
-	cfg[models.BundleId] = packageName
-	cfg[models.Orientation] = "sensorPortrait"
-	cfg[models.SignVersion] = "2"
-	cfg[models.KeystoreAlias] = "aygd3"
-	cfg[models.KeystorePass] = "aygd3123"
-	cfg[models.KeyPass] = "aygd3123"
-	cfg["appId"] = "614371"
-	models.SetServerDynamic(channelId, cfg)
-	androidHome := filepath.Join(path, "resources", "android")
-	javaHome := filepath.Join(path, "resources", "java")
-
-	buildPath := filepath.Join(homePath, product+"_"+channelId)
-	gamePath := filepath.Join(homePath, "game_demo.apk")
-	expandPath := filepath.Join(homePath, "channel")
-
-	//remove(buildPath, filepath.Join(homePath, "temp"))
-	utils.Remove(buildPath)
-	utils.Copy(filepath.Join(homePath, channel, "access.config"), filepath.Join(buildPath, "access.config"), true)
-	utils.Copy(filepath.Join(homePath, "ic_launcher.png"), filepath.Join(buildPath, "ic_launcher.png"), true)
-	utils.Copy(filepath.Join(homePath, keystoreName), filepath.Join(buildPath, keystoreName), true)
 	preParams := models.PreParams{
-		JavaHome:     javaHome,
-		AndroidHome:  androidHome,
-		BuildPath:    buildPath,
-		Channel:      channel,
-		ChannelId:    channelId,
-		HomePath:     homePath,
-		GamePath:     gamePath,
-		ExpandPath:   expandPath,
-		KeystoreName: keystoreName,
+		JavaHome:    params.JavaPath,
+		AndroidHome: params.AndroidPath,
+		RootPath:    params.RootPath,
+		ChannelName: params.ChannelName,
+		ChannelId:   params.ChannelId,
+		ProductId:   params.ProductId,
+		ApkName:     params.ApkName,
+		OutPutPath:  params.OutputPath,
+		PackageName: params.PackageName,
+		//HomePath:     buildRootPath,
+		ApkPath: params.ApkPath,
+		//ExpandPath:   filepath.Join(params.RootPath, "sdk", "expand"),
+		KeystoreName: "game.keystore",
 	}
 	packaging.Execute(&preParams, &ProgressImpl{}, &models.LogImpl{})
+	return nil
 }

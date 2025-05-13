@@ -1,62 +1,66 @@
-import ChannelParam from "./ChannelParam";
-import ProductParam from "./ProductParam";
+import {ProductParam} from "./ProductParam";
 import {get, writable} from "svelte/store";
 import {Print} from "../../wailsjs/go/main/App";
-
-export const packParamsStore = writable<ChannelParam[]>([])
-export const productParamsStore = writable<ProductParam[]>([])
+import { produce } from 'immer';
+import {ChannelParam} from "./ChannelParam";
+export let channelParamsStore = writable<ChannelParam[]>([])
+export let productParamsStore = writable<ProductParam[]>([])
 
 initProductData()
 
-export function getPackParamsData(productId): ChannelParam[] {
-    packParamsStore.set([])
+export function getPackParamsData(productId) {
+    channelParamsStore.set([])
 
-    const a = new ChannelParam(productId + "010","hoolai_万达","1.5.5", 1, 0)
-    const b = new ChannelParam(productId + "011", "xiaomi_小米", "2.4.3", 1, 0);
-    const c = new ChannelParam(productId + "012", "huawei_华为", "6.300.9.16", 1, 0);
-    const d = new ChannelParam(productId + "013", "oppo_OPPO", "4.8.0.8", 1, 0);
-    const e = new ChannelParam(productId + "014", "vivo_VIVO", "1.5.5.0", 1, 0);
-    const f = new ChannelParam(productId + "015", "uc_UC", "5.0.8", 1, 0);
-    const g = new ChannelParam(productId + "016", "4399_4399", "7.0.7", 1, 0);
-    const h = new ChannelParam(productId + "017", "hoolai_好游快爆", "4.9.0", 1, 0);
-    let initialData1 = [a,b,c,d,e,f,g,h]
-    packParamsStore.set(initialData1)
-    return [...get(packParamsStore)]
+    const a = {appName: "", channelId: "10219", channelName: "hoolai", channelDesc: "hoolai_万达", packageName: "com.wanda.sf3.wd", version: "1.0.5.5", isChecked: false, statusContent: "", progress: 0}
+    const b = {appName: "", channelId: "10221", channelName: "xiaomi", channelDesc: "xiaomi_小米", packageName: "com.hahd.aygd3.mi", version: "3.4.3", isChecked: false, statusContent: "", progress: 0}
+    const c = {appName: "", channelId: "10222", channelName: "huawei", channelDesc: "huawei_华为", packageName: "com.wanda.sf3.huawei", version: "6.13.0.300", isChecked: false, statusContent: "", progress: 0}
+    const d = {appName: "", channelId: "10223", channelName: "oppo", channelDesc: "oppo_OPPO", packageName: "com.wanda.sf3.nearme.gamecenter", version: "1.0.4", isChecked: false, statusContent: "", progress: 0}
+    const e = {appName: "", channelId: "10224", channelName: "vivo", channelDesc: "vivo_VIVO", packageName: "com.wanda.sf3.vivo", version: "4.7.8.0", isChecked: false, statusContent: "", progress: 0}
+    let initialData1 = [a,b,c,d,e]
+    channelParamsStore.set(initialData1)
+    return [...get(channelParamsStore)]
 }
 
-export function getProductData(): ProductParam[] {
+export function getProductData() {
     return [...get(productParamsStore)]
 }
 
 function initProductData() {
-    const a1 = new ProductParam("11", "demo测试")
-    const a2 = new ProductParam("12", "圣斗士")
-    const a3 = new ProductParam("13", "暗影格斗3")
-    const a4 = new ProductParam("14", "胡莱三国2")
-    const a5 = new ProductParam("15", "秦时明月：沧海")
-    const a6 = new ProductParam("16", "英雄传说·闪之轨迹之我的弟弟是真命天子")
+    const a1 = {productId:"11", productName:"demo测试"}
+    const a2 = {productId:"12", productName:"圣斗士"}
+    const a3 = {productId:"3015", productName:"暗影格斗3"}
+    const a4 = {productId:"14", productName:"胡莱三国2"}
+    const a5 = {productId:"15", productName:"秦时明月：沧海"}
+    const a6 = {productId:"16", productName:"英雄传说·闪之轨迹之我的弟弟是真命天子"}
     let initialData1 = [a1, a2, a3, a4, a5, a6]
     productParamsStore.set(initialData1)
     Print("获取产品信息:" + JSON.stringify(get(productParamsStore), null, 2))
 }
 
 export const packParamsActions = {
-    add:(channelId, channelName, version) => {
-        packParamsStore.update(params => {
-            const p = new ChannelParam(channelId,channelName,version, 1, 0)
-            p.channelId = channelId
-            p.channelName = channelName
-            p.version = version
+    add:(channelId, channelName, channelDesc, version) => {
+        channelParamsStore.update(params => {
+            const p = {appName: "", channelId: channelId, channelName: channelName, channelDesc: channelDesc, version: version, isChecked: false, statusContent: "", progress: 0, packageName: ""}
             return [...params, p]
         })
     },
     remove:(channelId) => {
-        packParamsStore.update(params => params.filter(u => u.channelId !== channelId))
+        channelParamsStore.update(params => params.filter(u => u.channelId !== channelId))
     },
-    update: (channelId, channelName, version) => {
-        const param = new ChannelParam(channelId,channelName,version, 1, 0)
-        param.channelId = channelId
-        param.version = version
-        packParamsStore.update(params => params.map(u => u.channelId === channelId ? param : u))
+    updateChecked: (channelId: string, checked: string) => {
+        channelParamsStore.update(params =>
+            produce(params, draft => {
+                const target = draft.find(p => p.channelId === channelId);
+                if (target) {
+                    Print("更新状态====" + target.channelName + " - " + channelId + "...." + checked)
+                    target.checked = checked
+                }
+            })
+        );
+
     },
+    get: (cid) => {
+        [...get(channelParamsStore)].filter(param => param.channelId === cid)
+    }
+
 }

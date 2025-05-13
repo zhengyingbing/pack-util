@@ -8,22 +8,24 @@
   import icon_exit from './assets/images/icon_exit.png'
   import icon_minimize from './assets/images/icon_minimize.png'
   import {
-    GetWindowPosition, LoadConfig,
+    LoadConfig,
     OpenDirectoryDialog,
     OpenFolder,
     Print,
-    SaveConfig, SelectApk,
+    SaveConfig,
+    SelectApk,
     StartPack
   } from "../wailsjs/go/main/App.js"
   import ToolBarContainer from "./ToolBarContainer.svelte";
   import PackInfoItem from "./PackInfoItem.svelte";
-  import {getPackParamsData, getProductData, packParamsActions} from "./ts/HttpUtils.ts";
+  import {channelParamsStore, getPackParamsData, getProductData} from "./ts/HttpUtils.ts";
+  import {productParamsStore} from "./ts/HttpUtils.ts";
+
   const OUTPUT_PATH = "output_path";
   const JAVA_PATH = "java_path";
   const ANDROID_PATH = "android_path";
   const BUILD_PATH = "build_path";
 
-  let packInfoItem
   let openMenuId = 0
   let selectedMenu = null
   let selectedItem = null
@@ -33,29 +35,14 @@
   let isOpenSettingDialog = false
 
   //选择产品相关
-  let isOpen = false
-  let gameName = '请选择游戏'
-  let games = []
-  //1:文字，2:按钮，3:图片，4:复选框，5:进度
-  const listHeader = [
-    {type: 4, content: ""},
-    {type: 1, content: "渠道名称"},
-    {type: 1, content: "渠道ID"},
-    {type: 1, content: "版本号"},
-    {type: 1, content: "打包进度"},
-    {type: 1, content: "打包状态"},
-    {type: 1, content: "耗时"},
-    {type: 1, content: "包文件"},
-  ]
-  let showProgress = false
-  let listInfo = []
+  let isOpenProductList = false
+  // let gameName = '请选择游戏'
 
   //是否正在打包
-  let isPackaging = false
-  let isCheckAll = false
+  let isPackaging
 
-  let gamePath = ""
-  let name
+  //母包路径
+  let gameApkPath = ""
 
   let isDebugMode = false
   let menus = [
@@ -70,9 +57,9 @@
     {id: 10, name:"个人中心", icon:"icon_menu", items: ["用户信息", "注销"]},
   ]
 
-  let productId = "1"
-  let channelId = "1"
-  let channel = "hoolai"
+  let productId = ""
+  let productName = ""
+
   onMount(async () => {
     outputDirPath = (await LoadConfig(OUTPUT_PATH)).value
     javaPath = (await LoadConfig(JAVA_PATH)).value
@@ -91,56 +78,79 @@
     window.runtime.Quit();
   }
   function toggleDropdown() {
-    isOpen = !isOpen
-    games = getProductData()
+    isOpenProductList = !isOpenProductList
+    getProductData()
   }
+
   function selectGame(id, name) {
     productId = id
-    gameName = name
-    isOpen = false
-    listInfo = getPackParamsData(productId)
-    Print("刷新渠道数据:" + listInfo)
+    productName = name
+    isOpenProductList = false
+    getPackParamsData(productId)
   }
 
   function handleClickOutside(event) {
     if (!event.target.closest('.dropdown-container')) {
-      isOpen = false
+      isOpenProductList = false
       openMenuId = 0
     }
   }
 
-  async function startPack() {
-    packInfoItem.updateStatus(2)
+  // const onProgress: ProgressCallback = (channelId, num) => {
+  //   Print("打包进度：" + num)
+  //   channelParamsStore.update(items =>
+  //           items.map(item =>
+  //                   item.channelId === channelId ? {...item, progress: num} : item
+  //           ))
+  // }
 
-    // statusContent = "打包中"
-    isPackaging = true
-    await new Promise(resolve => setTimeout(resolve, 3000))
-    isPackaging = false
-    packInfoItem.updateStatus(0)
-    // statusContent = "打包成功"
-    // const params = {
-    //   JavaHome:     javaPath,
-    //   AndroidHome:  androidPath,
-    //   BuildPath:    buildPath + "\\" + product + "_" + channelId,
-    //   Channel:      channel,
-    //   ChannelId:    channelId,
-    //   HomePath:     buildPath + "\\home",
-    //   GamePath:     gamePath,
-    //   ExpandPath:   buildPath + "\\channel",
-    //   KeystoreName: "aygd.keystore",
-    // }
-    // if (gamePath === "") {
-    //   alert("请先选择母包")
-    // } else if(buildPath === "" || javaPath === "" || androidPath === ""){
-    //   alert("请检查路径配置是否正确")
-    // }else {
-    //   StartPack(params)
-    // }
+  async function startPack() {
+    Print("一共选中了" + selectedItems.length + "项.")
+
+    if(buildPath === "" || javaPath === "" || androidPath === ""){
+      alert("请检查路径配置是否正确")
+      return
+    }
+    if (gameApkPath === "") {
+      alert("请先选择母包")
+      return
+    }
+    if (selectedItems.length > 0) {
+      for (const item of selectedItems) {
+        const params = {
+          JavaPath:     javaPath,
+          AndroidPath:  androidPath,
+          RootPath: buildPath,
+          ApkPath:     gameApkPath,
+          OutputPath: outputDirPath,
+          ProductName: productName,
+          ProductId: productId,
+          ApkName: productName + "_" + item.channelName + "_" + productId + "_" + item.channelId + "_" + item.version,
+          ChannelName:      item.channelName,
+          ChannelId:    item.channelId,
+          PackageName: item.packageName
+        }
+        StartPack(params)
+      }
+      isPackaging = true
+      channelParamsStore.update(items =>
+              items.map(item => item.isChecked ? {...item, statusContent: "打包中"} : item)
+      )
+    } else {
+      alert("请先选择渠道")
+    }
+
+    // isPackaging = true
+    // await new Promise(resolve => setTimeout(resolve, 2000))
+    // isPackaging = false
+    // channelParamsStore.update(items =>
+    //   items.map(item => item.isChecked ? {...item, statusContent: "打包完成", progress: 100} : item)
+    // )
   }
 
   //选择母包
   async function selectGameApk(){
-    gamePath = await SelectApk()
+    gameApkPath = await SelectApk()
   }
 
   function selectMenu(menu) {
@@ -171,7 +181,7 @@
         isOpenSettingDialog = true
         break;
       case "清空缓存":
-        alert("缓存已清空")
+        isPackaging = false
         break;
       case "更新记录":
         alert("这是最新")
@@ -211,6 +221,26 @@
     OpenFolder(outputDirPath)
   }
 
+  function toggleAll(checked) {
+    channelParamsStore.update(items => {
+      const newItems = items.map(item => ({...item, isChecked: checked}));
+      return newItems;
+    })
+  }
+
+  function toggleItem(channelId) {
+    Print("选中..." + channelId)
+    channelParamsStore.update(items =>
+      items.map(item =>
+        item.channelId === channelId ? {...item, isChecked: !item.isChecked} : item
+      )
+    )
+  }
+
+  $: allChecked = $channelParamsStore.every(item => item.isChecked)
+
+  //selectedItems是派生变量不是Store，没有update方法，需要直接修改channelParamsStore
+  $: selectedItems = $channelParamsStore.filter(item => item.isChecked)
 </script>
 <svelte:window on:click={handleClickOutside}/>
 <main>
@@ -255,13 +285,13 @@
       <div class="dropdown-container" id="dropdown-product">
         <div style="height: fit-content;">
           <button class="dropdown-button" on:click={toggleDropdown}>
-            {gameName || '请选择游戏'}
+            {productName || '请选择游戏'}
           </button>
-          {#if isOpen}
+          {#if isOpenProductList}
             <div id="product_list">
-              {#each games as game}
-                <div class="dropdown-item" id="product_item" on:click={() => selectGame(game._productId, game._productName)}>
-                  {game._productName}
+              {#each $productParamsStore as game}
+                <div class="dropdown-item" id="product_item" on:click={() => selectGame(game.productId, game.productName)}>
+                  {game.productName}
                 </div>
               {/each}
             </div>
@@ -270,7 +300,7 @@
       </div>
       <span style="background: #ff4f4f; border-radius: 4px; color: white">{#if isDebugMode}开发者模式{/if}</span>
       <div class="input-box">
-        <span id="gameApkName">{gamePath}</span>
+        <span id="gameApkName">{gameApkPath}</span>
         <button class="btn" on:click={selectGameApk}>选择母包</button>
         <button class="button-start" on:click={startPack} disabled={isPackaging}>{isPackaging ? "打包中" : "开始打包"}</button>
         <button class="btn" on:click={openOutputDir}>输出目录</button>
@@ -288,22 +318,18 @@
           <!--  <input class="checkbox" type="checkbox" id="myCheckbox" checked={isCheckAll}/>-->
           <!--{/if}-->
         <!--{/each}-->
-        <input class="checkbox" type="checkbox" id="myCheckbox" checked={isCheckAll}/>
+        <input class="checkbox" type="checkbox" id="myCheckbox" checked={allChecked} on:change={() => toggleAll(!allChecked)}/>
         <span class="span">渠道名称</span>
         <span class="span1">渠道ID</span>
+        <span class="span1">包名</span>
         <span class="span1">版本号</span>
         <span class="span">打包进度</span>
         <span class="span1">打包状态</span>
-        <span class="span">耗时</span>
         <span class="span2">包文件</span>
       </div>
-      {#each listInfo as info}
-        <PackInfoItem bind:this={packInfoItem} channelName={info._channelName} channelId={info._channelId} version={info._version} outPath = {outputDirPath}
-                      progress={info._progress} isChecked="false" totalTime={info._totalTime} showProgress={showProgress}>
-          {#if isPackaging}
-            <progress value={info._progress} max="100">{info._progress}%</progress>
-            <span class="progress-text">{info._progress}%</span>
-          {/if}
+      {#each $channelParamsStore as item}
+        <PackInfoItem channelParam={item} outPath={outputDirPath} handleItemClick={() => toggleItem(item.channelId)}>
+
         </PackInfoItem>
         {/each}
 
@@ -493,7 +519,7 @@
     height: 50px;
     display: inline-grid;
     grid-auto-flow: column;
-    grid-template-columns: 1fr 1fr 1fr 1fr 2fr 1fr 1fr 1fr;
+    grid-template-columns: 0.8fr 1fr 1fr 2.4fr 1fr 1.8fr 1.2fr 0.8fr;
     align-items: center;
     font-size: 14px;
   }
