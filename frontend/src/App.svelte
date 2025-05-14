@@ -1,5 +1,5 @@
 <script>
-  import {onMount} from 'svelte'
+  import {onDestroy, onMount} from 'svelte'
   import Dialog from './SettingDialog.svelte'
   import DialogItem from './SettingDialogItem.svelte'
   import CommonTitle from "./CommonTitle.svelte";
@@ -8,6 +8,7 @@
   import icon_exit from './assets/images/icon_exit.png'
   import icon_minimize from './assets/images/icon_minimize.png'
   import {
+    Clear,
     LoadConfig,
     OpenDirectoryDialog,
     OpenFolder,
@@ -18,8 +19,8 @@
   } from "../wailsjs/go/main/App.js"
   import ToolBarContainer from "./ToolBarContainer.svelte";
   import PackInfoItem from "./PackInfoItem.svelte";
-  import {channelParamsStore, getPackParamsData, getProductData} from "./ts/HttpUtils.ts";
-  import {productParamsStore} from "./ts/HttpUtils.ts";
+  import {channelParamsStore, productParamsStore, getPackParamsData, getProductData} from "./ts/HttpUtils.ts";
+  import {EventsOn} from "../wailsjs/runtime/runtime.js";
 
   const OUTPUT_PATH = "output_path";
   const JAVA_PATH = "java_path";
@@ -60,11 +61,24 @@
   let productId = ""
   let productName = ""
 
+
   onMount(async () => {
     outputDirPath = (await LoadConfig(OUTPUT_PATH)).value
     javaPath = (await LoadConfig(JAVA_PATH)).value
     androidPath = (await LoadConfig(ANDROID_PATH)).value
     buildPath = (await LoadConfig(BUILD_PATH)).value
+    EventsOn("progress", (data) => {
+      channelParamsStore.update(items =>
+              items.map(item =>
+                      item.channelId === data.channelId ? {...item, progress: data.progress} : item
+              ))
+      if (data.progress >= 100) {
+        isPackaging = false
+        channelParamsStore.update(items =>
+                items.map(item => item.channelId === data.channelId ? {...item, statusContent: "打包完成"} : item)
+        )
+      }
+    })
   })
 
   //获取渠道数据
@@ -95,14 +109,6 @@
       openMenuId = 0
     }
   }
-
-  // const onProgress: ProgressCallback = (channelId, num) => {
-  //   Print("打包进度：" + num)
-  //   channelParamsStore.update(items =>
-  //           items.map(item =>
-  //                   item.channelId === channelId ? {...item, progress: num} : item
-  //           ))
-  // }
 
   async function startPack() {
     Print("一共选中了" + selectedItems.length + "项.")
@@ -140,12 +146,6 @@
       alert("请先选择渠道")
     }
 
-    // isPackaging = true
-    // await new Promise(resolve => setTimeout(resolve, 2000))
-    // isPackaging = false
-    // channelParamsStore.update(items =>
-    //   items.map(item => item.isChecked ? {...item, statusContent: "打包完成", progress: 100} : item)
-    // )
   }
 
   //选择母包
@@ -181,7 +181,8 @@
         isOpenSettingDialog = true
         break;
       case "清空缓存":
-        isPackaging = false
+        Clear(buildPath)
+
         break;
       case "更新记录":
         alert("这是最新")

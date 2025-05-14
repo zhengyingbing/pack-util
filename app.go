@@ -10,6 +10,7 @@ import (
 	"github.com/zhengyingbing/common-utils/common/utils"
 	"github.com/zhengyingbing/common-utils/packaging"
 	"github.com/zhengyingbing/common-utils/packaging/models"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -45,20 +46,20 @@ func (a *App) Greet(name string) string {
 	return fmt.Sprintf("Hello %s, It's show time!", name)
 }
 
-type ProgressImpl struct {
-}
-
-func (ProgressImpl) Progress(channelId string, num int) {
-	log.Println("当前进度", strconv.Itoa(num)+"%")
-}
 func (a *App) GetWindowPosition() map[string]int {
 	x, y := runtime.WindowGetPosition(a.ctx)
 	print("获取当前坐标：", x, y)
 	return map[string]int{"x": x, "y": y}
 }
-func (a *App) Start(name string) error {
-	println("开始打包~")
-	return nil
+
+func (a *App) Clear(buildPath string) {
+	filepath.Walk(buildPath, func(path string, info fs.FileInfo, err error) error {
+		dirName := filepath.Base(path)
+		if dirName != "resources" {
+			utils.Remove(path)
+		}
+		return nil
+	})
 }
 
 func (a *App) Print(msg string) {
@@ -134,7 +135,25 @@ func (a *App) OpenFolder(path string) {
 	}
 }
 
+type ProgressImpl struct {
+	ctx context.Context
+}
+
+func (p *ProgressImpl) Progress(channelId string, num int) {
+	runtime.EventsEmit(p.ctx, "progress", map[string]interface{}{
+		"channelId": channelId,
+		"progress":  num,
+	})
+	log.Println("当前进度", strconv.Itoa(num)+"%")
+}
+
 func (a *App) StartPack(params *packParams) error {
+
+	println("开始打包...")
+	runtime.EventsEmit(a.ctx, "progress", map[string]interface{}{
+		"channelId": params.ChannelId,
+		"progress":  1,
+	})
 	fmt.Printf("%+v\n", params)
 	buildRootPath := filepath.Join(params.RootPath, "build")
 	buildPath := filepath.Join(buildRootPath, params.ProductId+"_"+params.ChannelId)
@@ -152,7 +171,16 @@ func (a *App) StartPack(params *packParams) error {
 	cfg[models.KeystoreAlias] = "aygd3"
 	cfg[models.KeystorePass] = "aygd3123"
 	cfg[models.KeyPass] = "aygd3123"
-	cfg["appId"] = "614371"
+	if params.ChannelName == "hoolai" {
+		cfg["appId"] = "614371"
+	} else if params.ChannelName == "xiaomi" {
+		cfg["appId"] = "2882303761520322194"
+		cfg["appKey"] = "5642032276194"
+	} else if params.ChannelName == "huawei" {
+		cfg["appId"] = "109488507"
+		cfg["cpId"] = "900086000021124445"
+	}
+
 	models.SetServerDynamic(params.ChannelId, cfg)
 
 	utils.Remove(buildRootPath)
@@ -176,6 +204,6 @@ func (a *App) StartPack(params *packParams) error {
 		//ExpandPath:   filepath.Join(params.RootPath, "sdk", "expand"),
 		KeystoreName: "game.keystore",
 	}
-	packaging.Execute(&preParams, &ProgressImpl{}, &models.LogImpl{})
+	packaging.Execute(&preParams, &ProgressImpl{ctx: a.ctx}, &models.LogImpl{})
 	return nil
 }

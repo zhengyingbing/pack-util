@@ -19,7 +19,7 @@
     })
 </script>
 <div class="info-layout" on:click={handleItemClick}>
-    <input class="info-checkbox" type="checkbox" checked={channelParam.isChecked ? "checked" : ""} on:change={handleItemClick}/>
+    <input class="info-checkbox" type="checkbox" checked={channelParam.isChecked ? "checked" : ""} on:click|stopPropagation on:change={handleItemClick}/>
     <span class="span">{channelParam.channelDesc}</span>
     <span class="span">{channelParam.channelId}</span>
     <span class="span">{channelParam.packageName}</span>
@@ -35,7 +35,7 @@
     <span class="status-content">{channelParam.statusContent}</span>
 
     <div>
-        <img class="img-file" src={icon_file} on:click={handleFileClick(channelParam.channelId)} alt="打开文件"/>
+        <img class="img-file" src={icon_file} on:click|stopPropagation={handleFileClick(channelParam.channelId)} alt="打开文件"/>
     </div>
 </div>
 <style>
