@@ -1,6 +1,7 @@
 package main
 
 import (
+	_go "changeme/go"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,13 +11,14 @@ import (
 	"github.com/zhengyingbing/common-utils/common/utils"
 	"github.com/zhengyingbing/common-utils/packaging"
 	"github.com/zhengyingbing/common-utils/packaging/models"
-	"io/fs"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
+	"sync"
 )
 
 var upgrader = websocket.Upgrader{
@@ -53,13 +55,7 @@ func (a *App) GetWindowPosition() map[string]int {
 }
 
 func (a *App) Clear(buildPath string) {
-	filepath.Walk(buildPath, func(path string, info fs.FileInfo, err error) error {
-		dirName := filepath.Base(path)
-		if dirName != "resources" {
-			utils.Remove(path)
-		}
-		return nil
-	})
+	utils.Remove(filepath.Join(buildPath, "build"))
 }
 
 func (a *App) Print(msg string) {
@@ -72,14 +68,14 @@ type Config struct {
 	Value string `json:"value"`
 }
 
-func (a *App) OpenDirectoryDialog() string {
+func (a *App) OpenDirectoryDialog(p string) string {
 	// 使用系统原生对话框
 	path, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
 		Title: "选择文件夹",
 	})
 	if err != nil {
 		runtime.LogError(a.ctx, err.Error())
-		return ""
+		return p
 	}
 	return path
 }
@@ -92,6 +88,7 @@ func (a *App) SelectApk() string {
 	}
 	return path
 }
+
 func (a *App) SaveConfig(config Config) error {
 	// 保存到本地文件 (示例路径)
 	//filePath := filepath.Join(runtime.ApplicationDataDirectory(a.ctx), "config.json")
@@ -147,63 +144,45 @@ func (p *ProgressImpl) Progress(channelId string, num int) {
 	log.Println("当前进度", strconv.Itoa(num)+"%")
 }
 
-func (a *App) StartPack(params *packParams) error {
-
+func (a *App) Start(productParam _go.ProductParam, channelParams []_go.ChannelParam) error {
 	println("开始打包...")
-	runtime.EventsEmit(a.ctx, "progress", map[string]interface{}{
-		"channelId": params.ChannelId,
-		"progress":  1,
-	})
-	fmt.Printf("%+v\n", params)
-	buildRootPath := filepath.Join(params.RootPath, "build")
-	buildPath := filepath.Join(buildRootPath, params.ProductId+"_"+params.ChannelId)
-	if !utils.Exist(buildPath) {
-		utils.CreateDir(buildPath)
+	packaging.Preparation(productParam, channelParams, &ProgressImpl{ctx: a.ctx}, &models.LogImpl{})
+	var wg sync.WaitGroup
+	errChan := make(chan error, len(channelParams)) // 带缓冲的错误通道
+	for _, channelParam := range channelParams {
+		wg.Add(1)
+		go func(cp _go.ChannelParam) {
+			defer wg.Done()
+			buildPath := filepath.Join(productParam.RootPath, productParam.ProductId+"_"+cp.ChannelId)
+			apkName := strings.Join(productParam.ApkName, "_")
+			apkName = strings.Replace(apkName, "channelId", cp.ChannelId, -1)
+			apkName = strings.Replace(apkName, "channelName", cp.ChannelName, -1) + ".apk"
+			preParams := models.PreParams{
+				JavaHome:     productParam.JavaPath,
+				AndroidHome:  productParam.AndroidPath,
+				RootPath:     productParam.RootPath,
+				BuildPath:    buildPath,
+				ChannelName:  cp.ChannelName,
+				ChannelId:    cp.ChannelId,
+				ProductId:    productParam.ProductId,
+				ProductName:  productParam.ProductName,
+				ApkName:      apkName,
+				OutPutPath:   productParam.OutputPath,
+				PackageName:  cp.PackageName,
+				ApkPath:      productParam.ApkPath,
+				KeystoreName: "game.keystore",
+			}
+			packaging.Execute(&preParams, &ProgressImpl{ctx: a.ctx}, &models.LogImpl{})
+		}(channelParam)
 	}
-	cfg := make(map[string]string)
-	cfg[models.AppName] = params.ProductName
-	cfg[models.IconName] = "ic_launcher.png"
-	cfg[models.TargetSdkVersion] = "30"
-	cfg[models.DexMethodCounters] = "60000"
-	cfg[models.BundleId] = params.PackageName
-	cfg[models.Orientation] = "sensorPortrait"
-	cfg[models.SignVersion] = "2"
-	cfg[models.KeystoreAlias] = "aygd3"
-	cfg[models.KeystorePass] = "aygd3123"
-	cfg[models.KeyPass] = "aygd3123"
-	if params.ChannelName == "hoolai" {
-		cfg["appId"] = "614371"
-	} else if params.ChannelName == "xiaomi" {
-		cfg["appId"] = "2882303761520322194"
-		cfg["appKey"] = "5642032276194"
-	} else if params.ChannelName == "huawei" {
-		cfg["appId"] = "109488507"
-		cfg["cpId"] = "900086000021124445"
+	go func() {
+		wg.Wait()
+		close(errChan)
+	}()
+	for err := range errChan {
+		if err != nil {
+			return err
+		}
 	}
-
-	models.SetServerDynamic(params.ChannelId, cfg)
-
-	utils.Remove(buildRootPath)
-	utils.Copy(filepath.Join(params.RootPath, "config", params.ChannelId, "access.config"), filepath.Join(buildPath, "access.config"), true)
-	utils.Copy(filepath.Join(params.RootPath, "config", params.ChannelId, "ic_launcher.png"), filepath.Join(buildPath, "ic_launcher.png"), true)
-	utils.Copy(filepath.Join(params.RootPath, "config", params.ChannelId, "game.keystore"), filepath.Join(buildPath, "game.keystore"), true)
-	println("路径=============：", buildRootPath)
-
-	preParams := models.PreParams{
-		JavaHome:    params.JavaPath,
-		AndroidHome: params.AndroidPath,
-		RootPath:    params.RootPath,
-		ChannelName: params.ChannelName,
-		ChannelId:   params.ChannelId,
-		ProductId:   params.ProductId,
-		ApkName:     params.ApkName,
-		OutPutPath:  params.OutputPath,
-		PackageName: params.PackageName,
-		//HomePath:     buildRootPath,
-		ApkPath: params.ApkPath,
-		//ExpandPath:   filepath.Join(params.RootPath, "sdk", "expand"),
-		KeystoreName: "game.keystore",
-	}
-	packaging.Execute(&preParams, &ProgressImpl{ctx: a.ctx}, &models.LogImpl{})
 	return nil
 }

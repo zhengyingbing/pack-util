@@ -5,6 +5,7 @@
 
     export let outPath
     export let channelParam
+    export let canClick
 
     export let handleItemClick = () => {}
 
@@ -18,8 +19,8 @@
 
     })
 </script>
-<div class="info-layout" on:click={handleItemClick}>
-    <input class="info-checkbox" type="checkbox" checked={channelParam.isChecked ? "checked" : ""} on:click|stopPropagation on:change={handleItemClick}/>
+<div class="info-layout" on:click={canClick ? handleItemClick : undefined}>
+    <input class="info-checkbox" type="checkbox" disabled={!canClick} checked={channelParam.isChecked ? "checked" : ""} on:click|stopPropagation on:change={canClick ? handleItemClick : undefined}/>
     <span class="span">{channelParam.channelDesc}</span>
     <span class="span">{channelParam.channelId}</span>
     <span class="span">{channelParam.packageName}</span>

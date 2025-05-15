@@ -15,7 +15,7 @@
     Print,
     SaveConfig,
     SelectApk,
-    StartPack
+    Start,
   } from "../wailsjs/go/main/App.js"
   import ToolBarContainer from "./ToolBarContainer.svelte";
   import PackInfoItem from "./PackInfoItem.svelte";
@@ -32,7 +32,6 @@
   let selectedItem = null
 
   let javaPath, androidPath, buildPath, outputDirPath
-  let folderPath = ''; // 存储选择的文件夹路径
   let isOpenSettingDialog = false
 
   //选择产品相关
@@ -68,6 +67,7 @@
     androidPath = (await LoadConfig(ANDROID_PATH)).value
     buildPath = (await LoadConfig(BUILD_PATH)).value
     EventsOn("progress", (data) => {
+      isPackaging = true
       channelParamsStore.update(items =>
               items.map(item =>
                       item.channelId === data.channelId ? {...item, progress: data.progress} : item
@@ -80,22 +80,21 @@
       }
     })
   })
-
-  //获取渠道数据
-  async function addData() {
-
-  }
+  //最小化
   function toggleMaximise() {
     window.runtime.WindowMinimise();
   }
+  //关闭
   function closeApp() {
     window.runtime.Quit();
   }
+  //选择游戏下拉框
   function toggleDropdown() {
     isOpenProductList = !isOpenProductList
     getProductData()
   }
 
+  //选择游戏下拉item
   function selectGame(id, name) {
     productId = id
     productName = name
@@ -103,6 +102,7 @@
     getPackParamsData(productId)
   }
 
+  //屏蔽dialog外部区域点击
   function handleClickOutside(event) {
     if (!event.target.closest('.dropdown-container')) {
       isOpenProductList = false
@@ -110,6 +110,7 @@
     }
   }
 
+  //开始打包
   async function startPack() {
     Print("一共选中了" + selectedItems.length + "项.")
 
@@ -121,23 +122,20 @@
       alert("请先选择母包")
       return
     }
+    const clientName = gameApkPath.split("\\").pop()
+    const productParam = {
+      JavaPath: javaPath,
+      AndroidPath: androidPath,
+      RootPath: buildPath,
+      ApkPath: gameApkPath,
+      OutputPath: outputDirPath,
+      ProductName: productName,
+      ProductId: productId,
+      ApkName: [clientName.split(".")[0], productName, productId, "channelId", "channelName"]
+    }
     if (selectedItems.length > 0) {
-      for (const item of selectedItems) {
-        const params = {
-          JavaPath:     javaPath,
-          AndroidPath:  androidPath,
-          RootPath: buildPath,
-          ApkPath:     gameApkPath,
-          OutputPath: outputDirPath,
-          ProductName: productName,
-          ProductId: productId,
-          ApkName: productName + "_" + item.channelName + "_" + productId + "_" + item.channelId + "_" + item.version,
-          ChannelName:      item.channelName,
-          ChannelId:    item.channelId,
-          PackageName: item.packageName
-        }
-        StartPack(params)
-      }
+      Start(productParam, selectedItems)
+
       isPackaging = true
       channelParamsStore.update(items =>
               items.map(item => item.isChecked ? {...item, statusContent: "打包中"} : item)
@@ -153,6 +151,7 @@
     gameApkPath = await SelectApk()
   }
 
+  //顶部一级菜单
   function selectMenu(menu) {
     Print("点击了" + menu.name + ", " + menu.id + ", " + menu.items)
     switch (menu.id) {
@@ -168,8 +167,8 @@
     selectedMenu = menu
   }
 
+  //顶部二级菜单
   async function selectMenuItem(item) {
-    // Print(item)
     selectedItem = item
     openMenuId = 0
     switch (item) {
@@ -185,30 +184,30 @@
 
         break;
       case "更新记录":
-        alert("这是最新")
+        isPackaging = false
         break;
       case "关于":
         alert("这是个打包工具")
         break;
     }
   }
-
+  //dialog关闭
   function closeDialog() {
     isOpenSettingDialog = false
   }
   //设置输出路径
   async function setOutputPath() {
-    outputDirPath = await OpenDirectoryDialog()
+    outputDirPath = await OpenDirectoryDialog(outputDirPath)
     Print("outputDirPath = " + outputDirPath)
   }
   async function setAndroidPath() {
-    androidPath = await OpenDirectoryDialog()
+    androidPath = await OpenDirectoryDialog(androidPath)
   }
   async function setJavaPath() {
-    javaPath = await OpenDirectoryDialog()
+    javaPath = await OpenDirectoryDialog(javaPath)
   }
   async function setBuildPath() {
-    buildPath = await OpenDirectoryDialog()
+    buildPath = await OpenDirectoryDialog(buildPath)
   }
   function savePath() {
     SaveConfig({"Key": JAVA_PATH, "Value": javaPath})
@@ -217,11 +216,12 @@
     SaveConfig({"Key": OUTPUT_PATH, "Value": outputDirPath})
     isOpenSettingDialog = false
   }
-  // 打开已保存的文件夹
+  // 打开输出目录
   async function openOutputDir() {
     OpenFolder(outputDirPath)
   }
 
+  //全选渠道
   function toggleAll(checked) {
     channelParamsStore.update(items => {
       const newItems = items.map(item => ({...item, isChecked: checked}));
@@ -229,6 +229,7 @@
     })
   }
 
+  //单选渠道
   function toggleItem(channelId) {
     Print("选中..." + channelId)
     channelParamsStore.update(items =>
@@ -257,7 +258,7 @@
   </Dialog>
   <div class="parent-layout" style="display: flex; flex-direction: column; height: 100vh">
     <ToolBarContainer>
-      <img alt="logo" src="{icon_logo}" style="height: 24px; margin-left: 20px" on:dblclick={() => isDebugMode = !isDebugMode} on:click={addData}/>
+      <img alt="logo" src="{icon_logo}" style="height: 24px; margin-left: 20px" on:dblclick={() => isDebugMode = !isDebugMode}/>
       <div id="title-box">
         {#each menus as menu}
           <div class="dropdown-container" id="dropdown-menu">
@@ -319,7 +320,7 @@
           <!--  <input class="checkbox" type="checkbox" id="myCheckbox" checked={isCheckAll}/>-->
           <!--{/if}-->
         <!--{/each}-->
-        <input class="checkbox" type="checkbox" id="myCheckbox" checked={allChecked} on:change={() => toggleAll(!allChecked)}/>
+        <input class="checkbox" type="checkbox" id="myCheckbox" checked={allChecked} disabled={isPackaging} on:change={() => toggleAll(!allChecked)}/>
         <span class="span">渠道名称</span>
         <span class="span1">渠道ID</span>
         <span class="span1">包名</span>
@@ -329,7 +330,7 @@
         <span class="span2">包文件</span>
       </div>
       {#each $channelParamsStore as item}
-        <PackInfoItem channelParam={item} outPath={outputDirPath} handleItemClick={() => toggleItem(item.channelId)}>
+        <PackInfoItem channelParam={item} outPath={outputDirPath} handleItemClick={() => toggleItem(item.channelId)} canClick={!isPackaging}>
 
         </PackInfoItem>
         {/each}
