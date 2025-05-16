@@ -4,8 +4,8 @@ export interface ChannelParam {
     channelName: string
     channelDesc: string
     version: string
-    //打包状态：未开始1，打包中2，打包成功0，打包失败-1
-    statusContent: string
+    //0：未选中，1：待打包，2：打包中，3：打包完成，4：打包失败
+    status: number
     progress: number
     isChecked: boolean
     packageName: string

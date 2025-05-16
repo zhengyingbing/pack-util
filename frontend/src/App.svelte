@@ -4,8 +4,9 @@
   import DialogItem from './SettingDialogItem.svelte'
   import CommonTitle from "./CommonTitle.svelte";
   import icon_menu from './assets/images/icon_menu.png'
-  import icon_logo from './assets/images/icon_logo.png'
+  import icon_logo from './assets/images/icon_logo4.gif'
   import icon_exit from './assets/images/icon_exit.png'
+  import icon_empty from './assets/images/icon_empty.png'
   import icon_minimize from './assets/images/icon_minimize.png'
   import {
     Clear,
@@ -75,7 +76,7 @@
       if (data.progress >= 100) {
         isPackaging = false
         channelParamsStore.update(items =>
-                items.map(item => item.channelId === data.channelId ? {...item, statusContent: "打包完成"} : item)
+                items.map(item => item.channelId === data.channelId ? {...item, status: 3} : item)
         )
       }
     })
@@ -137,8 +138,9 @@
       Start(productParam, selectedItems)
 
       isPackaging = true
+
       channelParamsStore.update(items =>
-              items.map(item => item.isChecked ? {...item, statusContent: "打包中"} : item)
+              items.map(item => item.isChecked ? {...item, status: 2} : item)
       )
     } else {
       alert("请先选择渠道")
@@ -223,19 +225,16 @@
 
   //全选渠道
   function toggleAll(checked) {
-    channelParamsStore.update(items => {
-      const newItems = items.map(item => ({...item, isChecked: checked}));
-      return newItems;
-    })
+    channelParamsStore.update(items =>
+      items.map(item => ({...item, isChecked: checked, status: checked ? 1 : 0}))
+    )
   }
 
   //单选渠道
   function toggleItem(channelId) {
     Print("选中..." + channelId)
     channelParamsStore.update(items =>
-      items.map(item =>
-        item.channelId === channelId ? {...item, isChecked: !item.isChecked} : item
-      )
+      items.map(item => item.channelId === channelId ? {...item, isChecked: !item.isChecked, status: !item.isChecked ? 1 : 0} : item)
     )
   }
 
@@ -258,7 +257,7 @@
   </Dialog>
   <div class="parent-layout" style="display: flex; flex-direction: column; height: 100vh">
     <ToolBarContainer>
-      <img alt="logo" src="{icon_logo}" style="height: 24px; margin-left: 20px" on:dblclick={() => isDebugMode = !isDebugMode}/>
+      <img alt="logo" src="{icon_logo}" style="height: 72px;margin-left: 20px" on:dblclick={() => isDebugMode = !isDebugMode}/>
       <div id="title-box">
         {#each menus as menu}
           <div class="dropdown-container" id="dropdown-menu">
@@ -309,26 +308,21 @@
       </div>
     </div>
 
-    <div id="center-box">
+    <div class="center-box">
 
       <div class="center-header">
-        <!--{#each listHeader as item}-->
-          <!--{#if item.type === 1}-->
-          <!--  <span class="span" id="center-type">{item.content}</span>-->
-          <!--{/if}-->
-          <!--{#if item.type === 4}-->
-          <!--  <input class="checkbox" type="checkbox" id="myCheckbox" checked={isCheckAll}/>-->
-          <!--{/if}-->
-        <!--{/each}-->
         <input class="checkbox" type="checkbox" id="myCheckbox" checked={allChecked} disabled={isPackaging} on:change={() => toggleAll(!allChecked)}/>
         <span class="span">渠道名称</span>
         <span class="span1">渠道ID</span>
         <span class="span1">包名</span>
         <span class="span1">版本号</span>
         <span class="span">打包进度</span>
-        <span class="span1">打包状态</span>
         <span class="span2">包文件</span>
       </div>
+      {#if $channelParamsStore.length === 0}
+        <img class="center_empty" src="{icon_empty}" />
+      {/if}
+
       {#each $channelParamsStore as item}
         <PackInfoItem channelParam={item} outPath={outputDirPath} handleItemClick={() => toggleItem(item.channelId)} canClick={!isPackaging}>
 
@@ -510,22 +504,28 @@
   }
 
 
-  #center-box {
+  .center-box {
     flex: 1;
-    background: #dddddd;
+    background: #ffffff;
     overflow-y: auto;
 
   }
   .center-header {
     width: 100%;
     height: 50px;
+    background: #dddddd;
     display: inline-grid;
     grid-auto-flow: column;
-    grid-template-columns: 0.8fr 1fr 1fr 2.4fr 1fr 1.8fr 1.2fr 0.8fr;
+    grid-template-columns: 0.8fr 1fr 1fr 2.4fr 1fr 1.8fr 1.2fr;
     align-items: center;
     font-size: 14px;
   }
-
+  .center_empty {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
   .center-header .checkbox {
     width: 20px;
     height: 20px;

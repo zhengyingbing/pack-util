@@ -10,14 +10,16 @@ initProductData()
 
 export function getPackParamsData(productId) {
     channelParamsStore.set([])
+    if (productId === "3015") {
+        const a = {appName: "", channelId: "10219", channelName: "hoolai", channelDesc: "hoolai_万达", packageName: "com.wanda.sf3.wd", version: "1.0.5.5", isChecked: false, status: 0, progress: 0}
+        const b = {appName: "", channelId: "10221", channelName: "xiaomi", channelDesc: "xiaomi_小米", packageName: "com.hahd.aygd3.mi", version: "3.4.3", isChecked: false, status: 0, progress: 0}
+        const c = {appName: "", channelId: "10222", channelName: "huawei", channelDesc: "huawei_华为", packageName: "com.wanda.sf3.huawei", version: "6.13.0.300", isChecked: false, status: 0, progress: 0}
+        const d = {appName: "", channelId: "10223", channelName: "oppo", channelDesc: "oppo_OPPO", packageName: "com.wanda.sf3.nearme.gamecenter", version: "1.0.4", isChecked: false, status: 0, progress: 0}
+        const e = {appName: "", channelId: "10224", channelName: "vivo", channelDesc: "vivo_VIVO", packageName: "com.wanda.sf3.vivo", version: "4.7.8.0", isChecked: false, status: 0, progress: 0}
+        let initialData1 = [a,b,c,d,e]
+        channelParamsStore.set(initialData1)
+    }
 
-    const a = {appName: "", channelId: "10219", channelName: "hoolai", channelDesc: "hoolai_万达", packageName: "com.wanda.sf3.wd", version: "1.0.5.5", isChecked: false, statusContent: "", progress: 0}
-    const b = {appName: "", channelId: "10221", channelName: "xiaomi", channelDesc: "xiaomi_小米", packageName: "com.hahd.aygd3.mi", version: "3.4.3", isChecked: false, statusContent: "", progress: 0}
-    const c = {appName: "", channelId: "10222", channelName: "huawei", channelDesc: "huawei_华为", packageName: "com.wanda.sf3.huawei", version: "6.13.0.300", isChecked: false, statusContent: "", progress: 0}
-    const d = {appName: "", channelId: "10223", channelName: "oppo", channelDesc: "oppo_OPPO", packageName: "com.wanda.sf3.nearme.gamecenter", version: "1.0.4", isChecked: false, statusContent: "", progress: 0}
-    const e = {appName: "", channelId: "10224", channelName: "vivo", channelDesc: "vivo_VIVO", packageName: "com.wanda.sf3.vivo", version: "4.7.8.0", isChecked: false, statusContent: "", progress: 0}
-    let initialData1 = [a,b,c,d,e]
-    channelParamsStore.set(initialData1)
     return [...get(channelParamsStore)]
 }
 
@@ -40,7 +42,7 @@ function initProductData() {
 export const packParamsActions = {
     add:(channelId, channelName, channelDesc, version) => {
         channelParamsStore.update(params => {
-            const p = {appName: "", channelId: channelId, channelName: channelName, channelDesc: channelDesc, version: version, isChecked: false, statusContent: "", progress: 0, packageName: ""}
+            const p = {appName: "", channelId: channelId, channelName: channelName, channelDesc: channelDesc, version: version, isChecked: false, status: 0, progress: 0, packageName: ""}
             return [...params, p]
         })
     },

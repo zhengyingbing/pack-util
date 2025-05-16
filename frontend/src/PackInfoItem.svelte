@@ -1,11 +1,13 @@
 <script>
     import {onMount} from "svelte";
     import icon_file from './assets/images/icon_file.png'
+    import icon_ok from './assets/images/icon_ok.png'
     import {OpenFolder, Print} from "../wailsjs/go/main/App.js";
 
     export let outPath
     export let channelParam
     export let canClick
+    //0：未选中，1：待打包，2：打包中，3：打包完成，4：打包失败
 
     export let handleItemClick = () => {}
 
@@ -25,15 +27,35 @@
     <span class="span">{channelParam.channelId}</span>
     <span class="span">{channelParam.packageName}</span>
     <span class="span">{channelParam.version}</span>
-    <div class="progress-container">
-        {#if channelParam.progress > 0}
-            <progress value={channelParam.progress} max="100">{channelParam.progress}%</progress>
-            <span class="progress-text">{channelParam.progress}%</span>
+    {#if channelParam.status === 0}
+        <span></span>
+    {:else if channelParam.status === 1}
+        <span>待打包</span>
+    {:else if channelParam.status === 2 || channelParam.status === 3}
+        <div class="progress-container">
+            <!--{#if channelParam.progress > 0}-->
+<!--                <progress value={channelParam.progress} max="100">{channelParam.progress}%</progress>-->
+<!--                <span class="progress-text">{channelParam.progress}%</span>-->
+<!--            {/if}-->
+            <progress value={channelParam.progress} max="100" class:running={channelParam.status === 2} class:completed={channelParam.status === 3}>{channelParam.progress}</progress>
+            {#if channelParam.status === 3}
+                <img style="height: 16px;" src={icon_ok}/>
+            {:else}
+                <span class="progress-text">{channelParam.progress}</span>
+            {/if}
+        </div>
+<!--        <div class="progress-container">-->
+<!--            <progress value="50" max="100" class:running={channelParam.status === 2} class:completed={channelParam.status === 3}>50%</progress>-->
+<!--            {#if channelParam.status === 3}-->
+<!--                <img style="height: 16px;" src={icon_ok}/>-->
+<!--                {:else}-->
+<!--                <span class="progress-text">50%</span>-->
+<!--                {/if}-->
+<!--        </div>-->
+
+    {:else if channelParam.status === 4}
+        <span class="progress-failed">打包失败</span>
         {/if}
-
-    </div>
-
-    <span class="status-content">{channelParam.statusContent}</span>
 
     <div>
         <img class="img-file" src={icon_file} on:click|stopPropagation={handleFileClick(channelParam.channelId)} alt="打开文件"/>
@@ -43,7 +65,7 @@
     .info-layout {
         display: inline-grid;
         grid-auto-flow: column;
-        grid-template-columns: 0.8fr 1fr 1fr 2.4fr 1fr 1.8fr 1.2fr 0.8fr;
+        grid-template-columns: 0.8fr 1fr 1fr 2.4fr 1fr 1.8fr 1.2fr;
         align-items: center;
         background: #ffffff;
         width: 100%;
@@ -65,14 +87,16 @@
     }
     /* 进度条样式 */
     .progress-container {
-        align-items: center;
+        position: relative;
         gap: 8px;
         min-width: 150px;
     }
     progress {
-        flex: 1;
+        top: 50%;
+        transform: translateY(-50%);
         height: 8px;
         border-radius: 4px;
+        margin-right: 4px;
     }
 
     progress::-webkit-progress-bar {
@@ -80,14 +104,22 @@
         border-radius: 4px;
     }
 
-    progress::-webkit-progress-value {
+    progress.running::-webkit-progress-value {
         background-color: #5498f1;
         border-radius: 4px;
     }
+    progress.completed::-webkit-progress-value {
+        background-color: #53c746;
+        border-radius: 4px;
+    }
     .progress-text {
-        width: 40px;
-        text-align: right;
         font-size: 0.8em;
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+    .progress-failed {
+        color: #f21a1a;
     }
     .img-file {
         align-content: center;
