@@ -285,7 +285,7 @@
     <div id="operate-box">
       <div class="dropdown-container" id="dropdown-product">
         <div style="height: fit-content;">
-          <button class="dropdown-button" on:click={toggleDropdown}>
+          <button class="dropdown-button" disabled={isPackaging} on:click={toggleDropdown}>
             {productName || '请选择游戏'}
           </button>
           {#if isOpenProductList}
@@ -302,7 +302,7 @@
       <span style="background: #ff4f4f; border-radius: 4px; color: white">{#if isDebugMode}开发者模式{/if}</span>
       <div class="input-box">
         <span id="gameApkName">{gameApkPath}</span>
-        <button class="btn" on:click={selectGameApk}>选择母包</button>
+        <button class="btn" disabled={isPackaging} on:click={selectGameApk}>选择母包</button>
         <button class="button-start" on:click={startPack} disabled={isPackaging}>{isPackaging ? "打包中" : "开始打包"}</button>
         <button class="btn" on:click={openOutputDir}>输出目录</button>
       </div>
