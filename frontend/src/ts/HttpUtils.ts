@@ -1,6 +1,6 @@
 import {ProductParam} from "./ProductParam";
 import {get, writable} from "svelte/store";
-import {Print} from "../../wailsjs/go/main/App";
+import {Print} from "../../wailsjs/go/main/App.js";
 import { produce } from 'immer';
 import {ChannelParam} from "./ChannelParam";
 export let channelParamsStore = writable<ChannelParam[]>([])

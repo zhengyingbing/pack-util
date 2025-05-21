@@ -1,7 +1,6 @@
 package main
 
 import (
-	_go "changeme/go"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -11,6 +10,7 @@ import (
 	"github.com/zhengyingbing/common-utils/common/utils"
 	"github.com/zhengyingbing/common-utils/packaging"
 	"github.com/zhengyingbing/common-utils/packaging/models"
+	util2 "github.com/zhengyingbing/common-utils/packaging/utils"
 	"log"
 	"net/http"
 	"os"
@@ -144,16 +144,16 @@ func (p *ProgressImpl) Progress(channelId string, num int) {
 	log.Println("当前进度", strconv.Itoa(num)+"%")
 }
 
-func (a *App) Start(productParam _go.ProductParam, channelParams []_go.ChannelParam) error {
-	println("开始打包...")
-	packaging.Preparation(productParam, channelParams, &ProgressImpl{ctx: a.ctx}, &models.LogImpl{})
+func (a *App) Start(productParam models.ProductParam, channelParams []models.ChannelParam) error {
+	util2.Write("您共选中的渠道数：", len(channelParams))
+	packaging.Preparation(productParam, channelParams, &ProgressImpl{ctx: a.ctx})
 	var wg sync.WaitGroup
 	errChan := make(chan error, len(channelParams)) // 带缓冲的错误通道
 	for _, channelParam := range channelParams {
 		wg.Add(1)
-		go func(cp _go.ChannelParam) {
+		go func(cp models.ChannelParam) {
 			defer wg.Done()
-			buildPath := filepath.Join(productParam.RootPath, productParam.ProductId+"_"+cp.ChannelId)
+			buildPath := filepath.Join(productParam.RootPath, "build", productParam.ProductId+"_"+cp.ChannelId)
 			apkName := strings.Join(productParam.ApkName, "_")
 			apkName = strings.Replace(apkName, "channelId", cp.ChannelId, -1)
 			apkName = strings.Replace(apkName, "channelName", cp.ChannelName, -1) + ".apk"
@@ -172,8 +172,12 @@ func (a *App) Start(productParam _go.ProductParam, channelParams []_go.ChannelPa
 				ApkPath:      productParam.ApkPath,
 				KeystoreName: "game.keystore",
 			}
-			packaging.Execute(&preParams, &ProgressImpl{ctx: a.ctx}, &models.LogImpl{})
+			//packaging.Execute(&preParams, &ProgressImpl{ctx: a.ctx}, &models.LogImpl{})
+			logger := util2.Init(channelParam.ChannelId, productParam.RootPath)
+			//defer logger.Shutdown()
+			packaging.Execute(&preParams, &ProgressImpl{ctx: a.ctx}, logger)
 		}(channelParam)
+
 	}
 	go func() {
 		wg.Wait()

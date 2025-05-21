@@ -41,7 +41,7 @@
             {#if channelParam.status === 3}
                 <img style="height: 16px;" src={icon_ok}/>
             {:else}
-                <span class="progress-text">{channelParam.progress}</span>
+                <span class="progress-text">{channelParam.progress}%</span>
             {/if}
         </div>
 <!--        <div class="progress-container">-->
