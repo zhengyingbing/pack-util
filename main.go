@@ -1,22 +1,43 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
+// 嵌入资源
+//
 //go:embed all:frontend/dist
 var assets embed.FS
 
+// App struct
+type App struct {
+	ctx context.Context
+}
+
+func (a *App) Login(username, password string) bool {
+	return username == "admin" && password == "123123"
+}
+
+func (a *App) ResizeWindow(width, height int) {
+	runtime.WindowSetSize(a.ctx, width, height)
+}
+
 func main() {
-	app := NewApp()
+	app := &App{}
 	//创建wails应用
 	err := wails.Run(&options.App{
-		Title:  "打包工具",
-		Width:  1024,
-		Height: 768,
+		Title:     "打包工具",
+		Width:     400,
+		Height:    600,
+		MinWidth:  400,
+		MinHeight: 600,
+		MaxWidth:  1080,
+		MaxHeight: 720,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},

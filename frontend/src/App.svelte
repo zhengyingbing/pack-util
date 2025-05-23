@@ -8,6 +8,7 @@
   import icon_exit from './assets/images/icon_exit.png'
   import icon_empty from './assets/images/icon_empty.png'
   import icon_minimize from './assets/images/icon_minimize.png'
+  import icon_debug from './assets/images/icon_debug.png'
   import {
     Clear,
     LoadConfig,
@@ -17,11 +18,13 @@
     SaveConfig,
     SelectApk,
     Start,
+    GetGameInfo, ResizeWindow,
   } from "../wailsjs/go/main/App.js"
   import ToolBarContainer from "./ToolBarContainer.svelte";
   import PackInfoItem from "./PackInfoItem.svelte";
   import {channelParamsStore, productParamsStore, getPackParamsData, getProductData} from "./ts/HttpUtils.ts";
   import {EventsOn} from "../wailsjs/runtime/runtime.js";
+  import {navigate} from "svelte-navigator";
 
   const OUTPUT_PATH = "output_path";
   const JAVA_PATH = "java_path";
@@ -81,6 +84,10 @@
       }
     })
   })
+
+  function getGameInfo() {
+    GetGameInfo()
+  }
   //最小化
   function toggleMaximise() {
     window.runtime.WindowMinimise();
@@ -186,10 +193,17 @@
 
         break;
       case "更新记录":
-        isPackaging = false
+
+        // isPackaging = false
         break;
       case "关于":
         alert("这是个打包工具")
+      case "用户信息":
+        alert("用户信息")
+        break;
+      case "注销":
+        ResizeWindow(400, 600)
+        navigate("/")
         break;
     }
   }
@@ -257,7 +271,7 @@
   </Dialog>
   <div class="parent-layout" style="display: flex; flex-direction: column; height: 100vh">
     <ToolBarContainer>
-      <img alt="logo" src="{icon_logo}" style="height: 72px;margin-left: 20px" on:dblclick={() => isDebugMode = !isDebugMode}/>
+      <img alt="logo" src="{icon_logo}" style="height: 72px;margin-left: 20px" on:dblclick={() => isDebugMode = !isDebugMode} on:click={getGameInfo}/>
       <div id="title-box">
         {#each menus as menu}
           <div class="dropdown-container" id="dropdown-menu">
@@ -299,7 +313,10 @@
           {/if}
         </div>
       </div>
-      <span style="background: #ff4f4f; border-radius: 4px; color: white">{#if isDebugMode}开发者模式{/if}</span>
+      {#if isDebugMode }
+        <img class="img-debug" src={icon_debug}/>
+        {/if}
+
       <div class="input-box">
         <span id="gameApkName">{gameApkPath}</span>
         <button class="btn" disabled={isPackaging} on:click={selectGameApk}>选择母包</button>
@@ -456,6 +473,11 @@
     right: 10px;
   }
 
+  .img-debug {
+
+    width: 16px;
+    height: 16px;
+  }
   .input-box {
     display: inline-flex;
     justify-content: right;

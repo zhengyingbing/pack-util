@@ -1,11 +1,8 @@
-package main
+package logic
 
 import (
-	"changeme/manager"
 	"context"
 	"encoding/json"
-	"fmt"
-	"github.com/gorilla/websocket"
 	"github.com/sqweek/dialog"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"github.com/zhengyingbing/common-utils/common/utils"
@@ -13,7 +10,6 @@ import (
 	"github.com/zhengyingbing/common-utils/packaging/models"
 	util2 "github.com/zhengyingbing/common-utils/packaging/utils"
 	"log"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,52 +18,39 @@ import (
 	"sync"
 )
 
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
+type PackageHandler struct {
+	ctx context.Context
 }
 
-// startup is called when the app starts. The context is saved
-// so we can call the runtime methods
-func (a *App) startup(ctx context.Context) {
-	a.ctx = ctx
-	//log.Println("开始获取产品信息！！")
-	//games := api.AllGames()
-	//
-	//fmt.Sprintf("获取产品结果：%+v", games)
-	manager.GameMgrInstance().AllGameInfo()
+func NewPackageHandler(ctx context.Context) *PackageHandler {
+	return &PackageHandler{
+		ctx: ctx,
+	}
 }
 
-// Greet returns a greeting for the given name
-func (a *App) Greet(name string) string {
-	return fmt.Sprintf("Hello %s, It's show time!", name)
-}
-
-func (a *App) GetPosition() (int, int) {
-	x, y := runtime.WindowGetPosition(a.ctx)
-	return x, y
-}
-
-func (a *App) SetPosition(x, y int) {
-	runtime.WindowSetPosition(a.ctx, x, y)
-}
-
-func (a *App) GetGameInfo() {
-	manager.GameMgrInstance().AllGameInfo()
-}
-
-func (a *App) GetWindowPosition() map[string]int {
-	x, y := runtime.WindowGetPosition(a.ctx)
+func (handler *PackageHandler) GetWindowPosition() map[string]int {
+	x, y := runtime.WindowGetPosition(handler.ctx)
 	print("获取当前坐标：", x, y)
 	return map[string]int{"x": x, "y": y}
 }
 
-func (a *App) Clear(buildPath string) {
+type ProgressImpl struct {
+	ctx context.Context
+}
+
+func (p *ProgressImpl) Progress(channelId string, num int) {
+	runtime.EventsEmit(p.ctx, "progress", map[string]interface{}{
+		"channelId": channelId,
+		"progress":  num,
+	})
+	log.Println("当前进度", strconv.Itoa(num)+"%")
+}
+
+func (handler *PackageHandler) Clear(buildPath string) {
 	utils.Remove(filepath.Join(buildPath, "build"))
 }
 
-func (a *App) Print(msg string) {
+func (handler *PackageHandler) Print(msg string) {
 	println("js日志：", msg)
 }
 
@@ -77,30 +60,30 @@ type Config struct {
 	Value string `json:"value"`
 }
 
-func (a *App) OpenDirectoryDialog(p string) string {
+func (handler *PackageHandler) OpenDirectoryDialog(p string) string {
 	// 使用系统原生对话框
-	path, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+	path, err := runtime.OpenDirectoryDialog(handler.ctx, runtime.OpenDialogOptions{
 		Title: "选择文件夹",
 	})
 	if err != nil {
-		runtime.LogError(a.ctx, err.Error())
+		runtime.LogError(handler.ctx, err.Error())
 		return p
 	}
 	return path
 }
 
-func (a *App) SelectApk() string {
+func (handler *PackageHandler) SelectApk() string {
 	path, err := dialog.File().Title("选择母包").Filter(".apk", "apk").Load()
 	if err != nil {
-		runtime.LogError(a.ctx, err.Error())
+		runtime.LogError(handler.ctx, err.Error())
 		return ""
 	}
 	return path
 }
 
-func (a *App) SaveConfig(config Config) error {
+func (handler *PackageHandler) SaveConfig(config Config) error {
 	// 保存到本地文件 (示例路径)
-	//filePath := filepath.Join(runtime.ApplicationDataDirectory(a.ctx), "config.json")
+	//filePath := filepath.Join(runtime.PackageHandlerlicationDataDirectory(handler.ctx), "config.json")
 	path, _ := os.Getwd()
 	filePath := filepath.Join(path, "config.json")
 	ab, _ := os.ReadFile(filePath)
@@ -112,7 +95,7 @@ func (a *App) SaveConfig(config Config) error {
 	return os.WriteFile(filePath, jsonData, 0644)
 }
 
-func (a *App) LoadConfig(key string) Config {
+func (handler *PackageHandler) LoadConfig(key string) Config {
 	path, _ := os.Getwd()
 	filePath := filepath.Join(path, "config.json")
 	data, err := os.ReadFile(filePath)
@@ -128,7 +111,7 @@ func (a *App) LoadConfig(key string) Config {
 	}
 }
 
-func (a *App) OpenFolder(path string) {
+func (handler *PackageHandler) OpenFolder(path string) {
 	// 跨平台打开文件夹
 	println("打开路径", path)
 	switch utils.CurrentOsType() {
@@ -141,21 +124,9 @@ func (a *App) OpenFolder(path string) {
 	}
 }
 
-type ProgressImpl struct {
-	ctx context.Context
-}
-
-func (p *ProgressImpl) Progress(channelId string, num int) {
-	runtime.EventsEmit(p.ctx, "progress", map[string]interface{}{
-		"channelId": channelId,
-		"progress":  num,
-	})
-	log.Println("当前进度", strconv.Itoa(num)+"%")
-}
-
-func (a *App) Start(productParam models.ProductParam, channelParams []models.ChannelParam) error {
-	util2.Write("您共选中的渠道数：", len(channelParams))
-	packaging.Preparation(productParam, channelParams, &ProgressImpl{ctx: a.ctx})
+func (handler *PackageHandler) Start(productParam models.ProductParam, channelParams []models.ChannelParam) error {
+	println("开始打包...")
+	packaging.Preparation(productParam, channelParams, &ProgressImpl{ctx: handler.ctx})
 	var wg sync.WaitGroup
 	errChan := make(chan error, len(channelParams)) // 带缓冲的错误通道
 	for _, channelParam := range channelParams {
@@ -181,10 +152,10 @@ func (a *App) Start(productParam models.ProductParam, channelParams []models.Cha
 				ApkPath:      productParam.ApkPath,
 				KeystoreName: "game.keystore",
 			}
-			//packaging.Execute(&preParams, &ProgressImpl{ctx: a.ctx}, &models.LogImpl{})
+			//packaging.Execute(&preParams, &ProgressImpl{ctx: handler.ctx}, &models.LogImpl{})
 			logger := util2.Init(channelParam.ChannelId, productParam.RootPath)
-			//defer logger.Shutdown()
-			packaging.Execute(&preParams, &ProgressImpl{ctx: a.ctx}, logger)
+			defer logger.Shutdown()
+			packaging.Execute(&preParams, &ProgressImpl{ctx: handler.ctx}, logger)
 		}(channelParam)
 
 	}
